@@ -14,15 +14,30 @@ function finish {
 }
 trap finish EXIT
 
+
 # setting default extension to mp3
 if [ $# -eq 0 ]; then
 	extension="mp3"
 else
 	extension=$@
+	extension=${extension// /|}
 fi
 
-for file in **/*.@(${extension// /|}); do
-	ffmpeg -threads 4 -v 0 -i $file -c:a libopus -b:a 128k "${file%.*}.opus" && rm "$file"
+
+echo "extension is $extension"
+
+for file in **/*.@($extension); do
+	channels=$(ffprobe "$file" -show_entries stream=channels -select_streams a -of compact=p=0:nk=1 -v 0)	
+	case $channels in
+		1) bitrate="64k";;
+		2) bitrate="128k";;
+		6) bitrate="256k";;
+		8) bitrate="450k";;
+		*) continue;;
+	esac
+	# https://wiki.xiph.org/Opus_Recommended_Settings
+
+	ffmpeg -threads 4 -v 0 -i "$file" -c:a libopus -b:a $bitrate "${file%.*}.opus" && rm "$file"
 done
 
 exit 0
