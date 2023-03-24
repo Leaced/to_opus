@@ -22,7 +22,7 @@ else
 fi
 
 for file in **/*.@(${extension// /|}); do
-	ffmpeg -threads 4 -i $file -c:a libopus -b:a 128k "${file%.*}.opus" && rm "$file"
+	ffmpeg -threads 4 -v 0 -i $file -c:a libopus -b:a 128k "${file%.*}.opus" && rm "$file"
 done
 
 exit 0
