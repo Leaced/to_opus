@@ -24,23 +24,25 @@ else
 fi
 
 
-echo "extension is $extension"
-
 for file in **/*.@($extension); do
-	channels=$(ffprobe "$file" -show_entries stream=channels -select_streams a -of compact=p=0:nk=1 -v 0)	
+	# getting information about the streams
+	channels=$(ffprobe "$file" -show_entries stream=channels -select_streams a -of compact=p=0:nk=1 -v 0)
+	bitrate=$(ffprobe "$file" -show_entries stream=bit_rate -select_streams a -of compact=p=0:nk=1 -v 0)
 	streams=$(echo "$channels" | wc -l)
+
+	# setting bitrate
 	if [ streams -gt 1 ]; then
 		echo "Error: Automatic Bitrate is not supported for files with multiple audiostreams. The default bitrate of 128k will be used"
-		channels="2"
+		bitrate="128k"
+	elif
+		case $channels in
+			1) if [$bitrate -gt 64000]; then bitrate="64k"; fi;;
+			2) if [$bitrate -gt 128000]; then bitrate="128k"; fi;;
+			6) if [$bitrate -gt 256000]; then bitrate="256k"; fi;;
+			8) if [$bitrate -gt 450000]; then bitrate="450k"; fi;;
+			*) bitrate=128k";;
+		esac
 	fi
-
-	case $channels in
-		1) bitrate="64k";;
-		2) bitrate="128k";;
-		6) bitrate="256k";;
-		8) bitrate="450k";;
-		*) continue;;
-	esac
 	# https://wiki.xiph.org/Opus_Recommended_Settings
 
 	ffmpeg -threads 4 -v 0 -i "$file" -map 0 -c:a libopus -b:a $bitrate "${file%.*}.opus" && rm "$file"
