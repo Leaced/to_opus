@@ -6,3 +6,8 @@ converting all Files in your current working directory and all subdirectories to
 
 ### Dependencies
 - ffmpeg
+
+## ToDo:
+- better support multiple audio streams
+- better documentation
+- support for converting the audiostream in video files
