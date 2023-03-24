@@ -14,9 +14,9 @@ function finish {
 }
 trap finish EXIT
 
-# setting default extension to all
+# setting default extension to mp3
 if [ $# -eq 0 ]; then
-	extension="*"
+	extension="mp3"
 else
 	extension=$@
 fi
