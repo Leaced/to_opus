@@ -25,27 +25,33 @@ fi
 
 
 for file in **/*.@($extension); do
-	# getting information about the streams
-	channels=$(ffprobe "$file" -show_entries stream=channels -select_streams a -of compact=p=0:nk=1 -v 0)
-	bitrate=$(ffprobe "$file" -show_entries stream=bit_rate -select_streams a -of compact=p=0:nk=1 -v 0)
-	streams=$(echo "$channels" | wc -l)
+	
+	#set a channel-dependent  bitrate for every audio stream
+	command=$(
+		ffprobe "$file" -v 0 -show_entries stream=channels,bit_rate -select_streams a -of compact=p=0:nk=1:s="\ " |
+		awk -v file="$file" -v file_output="${file%.*}.opus" '
+			BEGIN{
+				ORS=" ";
+				print "ffmpeg -threads 4 -i \""file"\" -map 0:a -c:a libopus"
+			}
+			{	# https://wiki.xiph.org/Opus_Recommended_Settings
+				if($1==1) print $2>=64000 ? "-b:a:"NR-1" 128k" : "-b:a:"NR-1" "$2
+				else if($1==2) print $2>=500000 ? "-b:a:"NR-1" 128k" : "-b:a:"NR-1" "$2
+				else if($1<=6) print $2>=256000 ? "-b:a:"NR-1" 128k" : "-b:a:"NR-1" "$2
+				else print $2>=450000 ? "-b:a:"NR-1" 128k" : "-b:a:"NR-1" "$2
+			}
+			END{
+				print "\""file_output"\" -v 32 -hide_banner"
+			}')
 
-	# setting bitrate
-	if [ streams -gt 1 ]; then
-		echo "Error: Automatic Bitrate is not supported for files with multiple audiostreams. The default bitrate of 128k will be used"
-		bitrate="128k"
-	elif
-		case $channels in
-			1) if [$bitrate -gt 64000]; then bitrate="64k"; fi;;
-			2) if [$bitrate -gt 128000]; then bitrate="128k"; fi;;
-			6) if [$bitrate -gt 256000]; then bitrate="256k"; fi;;
-			8) if [$bitrate -gt 450000]; then bitrate="450k"; fi;;
-			*) bitrate=128k";;
-		esac
+
+	is_video=$(ffprobe "$file" -v 0 -show_entries stream=codec_type -of compact=p=0:nk=1:s="\ " | grep video)
+	if [[ -n "$is_video" ]]; then
+		eval "$command"
+	else
+		#eval "$command" && rm "$file"
 	fi
-	# https://wiki.xiph.org/Opus_Recommended_Settings
 
-	ffmpeg -threads 4 -v 0 -i "$file" -map 0 -c:a libopus -b:a $bitrate "${file%.*}.opus" && rm "$file"
 done
 
 exit 0
